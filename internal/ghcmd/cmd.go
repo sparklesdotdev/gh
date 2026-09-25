@@ -49,7 +49,10 @@ const (
 	exitPending exitCode = 8
 )
 
-func Main() exitCode {
+func Main() exitCode { return MainContext(context.Background()) }
+
+// MainContext carries the embedding process lifetime into CLI requests.
+func MainContext(ctx context.Context) exitCode {
 	buildDate := build.Date
 	buildVersion := build.Version
 	hasDebug, _ := utils.IsDebugEnabled()
@@ -140,7 +143,6 @@ func Main() exitCode {
 		}
 	}
 
-	ctx := context.Background()
 	updateCtx, updateCancel := context.WithCancel(ctx)
 	defer updateCancel()
 	updateMessageChan := make(chan *update.ReleaseInfo)
