@@ -2,6 +2,7 @@ package git
 
 import (
 	"net/url"
+	"os"
 	"strings"
 )
 
@@ -38,6 +39,18 @@ func ParseURL(rawURL string) (*url.URL, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, err
+	}
+
+	// Git applies insteadOf before gh reads remotes. Restore repository identity
+	// inside the managed sandbox; Git still applies the proxy rewrite on transport.
+	if os.Getenv("SPARKLESD_GITHUB_SOCKET") != "" && u.Scheme == "http" &&
+		u.Hostname() == "127.0.0.1" && u.Port() != "" && u.User == nil &&
+		u.RawQuery == "" && u.Fragment == "" && strings.HasPrefix(u.Path, "/github/github.com/") {
+		path := strings.TrimPrefix(u.Path, "/github/github.com/")
+		parts := strings.Split(strings.TrimSuffix(path, "/"), "/")
+		if len(parts) == 2 && parts[0] != "" && parts[1] != "" {
+			u.Scheme, u.Host, u.Path, u.RawPath = "https", "github.com", "/"+path, ""
+		}
 	}
 
 	switch u.Scheme {

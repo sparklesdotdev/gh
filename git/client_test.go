@@ -2418,3 +2418,27 @@ func TestClientWorktreePrune(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "path/to/git worktree prune", strings.Join(cmd.Args[3:], " "))
 }
+
+func TestClientRemotesSparklesProxy(t *testing.T) {
+	IsolateConfig(t)
+	dir := t.TempDir()
+	initRepo(t, dir)
+	t.Setenv("SPARKLESD_GITHUB_SOCKET", "/run/github.sock")
+	t.Setenv("GIT_CONFIG_COUNT", "1")
+	t.Setenv("GIT_CONFIG_KEY_0", "url.http://127.0.0.1:39841/github/github.com/.insteadOf")
+	t.Setenv("GIT_CONFIG_VALUE_0", "https://github.com/")
+	client := Client{RepoDir: dir}
+	add, err := client.Command(context.Background(), "remote", "add", "origin", "https://github.com/acme/repo.git")
+	require.NoError(t, err)
+	require.NoError(t, add.Run())
+	remotes, err := client.Remotes(context.Background())
+	require.NoError(t, err)
+	require.Len(t, remotes, 1)
+	assert.Equal(t, "https://github.com/acme/repo.git", remotes[0].FetchURL.String())
+	assert.Equal(t, "https://github.com/acme/repo.git", remotes[0].PushURL.String())
+	cmd, err := client.Command(context.Background(), "remote", "get-url", "origin")
+	require.NoError(t, err)
+	output, err := cmd.Output()
+	require.NoError(t, err)
+	assert.Equal(t, "http://127.0.0.1:39841/github/github.com/acme/repo.git\n", string(output))
+}

@@ -240,3 +240,20 @@ func TestParseURL(t *testing.T) {
 		})
 	}
 }
+
+func TestParseURLSparklesProxy(t *testing.T) {
+	for _, tt := range []struct{ name, socket, input, want string }{
+		{"managed", "/run/github.sock", "http://127.0.0.1:39841/github/github.com/acme/repo.git", "https://github.com/acme/repo.git"},
+		{"unmanaged", "", "http://127.0.0.1:39841/github/github.com/acme/repo.git", "http://127.0.0.1:39841/github/github.com/acme/repo.git"},
+		{"other host", "/run/github.sock", "http://example.com:39841/github/github.com/acme/repo.git", "http://example.com:39841/github/github.com/acme/repo.git"},
+		{"other route", "/run/github.sock", "http://127.0.0.1:39841/other/acme/repo.git", "http://127.0.0.1:39841/other/acme/repo.git"},
+		{"missing repo", "/run/github.sock", "http://127.0.0.1:39841/github/github.com/acme", "http://127.0.0.1:39841/github/github.com/acme"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("SPARKLESD_GITHUB_SOCKET", tt.socket)
+			u, err := ParseURL(tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, u.String())
+		})
+	}
+}
